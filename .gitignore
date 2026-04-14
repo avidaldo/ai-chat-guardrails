@@ -1,0 +1,17 @@
+# .env contains real secrets — never commit it
+.env
+
+# Python virtual environment created by uv
+.venv/
+
+# Python bytecode cache
+__pycache__/
+*.pyc
+*.pyo
+
+# uv lock file (optional: commit if you want reproducible installs)
+# uv.lock
+
+# Common IDE folders
+.idea/
+.vscode/

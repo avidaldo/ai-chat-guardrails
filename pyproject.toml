@@ -1,0 +1,13 @@
+[project]
+name = "guardrailed-chatbot"
+version = "0.1.0"
+description = "Didactic example: conversational chatbot with input/output guardrails"
+requires-python = ">=3.13"
+dependencies = [
+    # Official Google Gemini SDK — replaces the deprecated google-generativeai package
+    "google-genai>=1.10.0",
+    # Official Python client for Ollama (local model server)
+    "ollama>=0.4.0",
+    # Loads variables from the .env file into os.environ
+    "python-dotenv>=1.1.0",
+]
