@@ -216,8 +216,3 @@ This example prioritizes readability over completeness. These are known simplifi
 - **REST API with FastAPI:** `POST /chat` + `GET /health` endpoints — makes the chatbot usable from any frontend
 - **Automated evaluation:** a script that sends predefined questions and compares local vs. remote responses (LLM benchmarking)
 - **Deploy to Hugging Face Spaces:** the Gradio app deploys for free with the API key as an encrypted Secret
-
----
-
-*Created for educational use — Higher Vocational Training in Computer Science, April 2026*
-
