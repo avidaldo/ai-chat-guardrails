@@ -9,5 +9,12 @@ dependencies = [
     # Official Python client for Ollama (local model server)
     "ollama>=0.4.0",
     # Loads variables from the .env file into os.environ
+    "pydantic-settings>=2.13.1",
     "python-dotenv>=1.1.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+    "pytest-mock>=3.15.1",
 ]

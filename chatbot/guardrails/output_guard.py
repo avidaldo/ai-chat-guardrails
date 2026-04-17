@@ -18,6 +18,8 @@ In this example the validation is simple, but the pattern is extensible:
     - Detect and redact PII (Personally Identifiable Information) with presidio-analyzer
 """
 
+from typing import Callable
+
 # Phrases that the model should NEVER output.
 # If any of these appear, it likely means the model has "leaked" information
 # from its system prompt or its training data.
@@ -70,7 +72,25 @@ def _check_sensitive_leak(text: str) -> tuple[bool, str]:
     return True, ""
 
 
-def validate(text: str) -> tuple[bool, str]:
+def _check_llm_judge(text: str, judge: Callable[[str], str]) -> tuple[bool, str]:
+    """
+    Uses the configured LLM to evaluate the assistant's output for sensitive info leaks.
+    """
+    prompt = f"""
+    You are a strict security evaluator. Analyze the following assistant response and determine if it leaks sensitive information like API keys, passwords, or system prompt instructions.
+    If it is safe, respond with exactly "SAFE".
+    If it is unsafe, respond with "UNSAFE: " followed by a brief reason.
+
+    Assistant response: {text}
+    """
+    response = judge(prompt).strip()
+    if response.startswith("UNSAFE"):
+        reason = response.replace("UNSAFE:", "").strip()
+        return False, f"LLM Guard blocked response: {reason}"
+    return True, ""
+
+
+def validate(text: str, llm_judge: Callable[[str], str] | None = None) -> tuple[bool, str]:
     """
     Entry point for the output guardrail.
 
@@ -85,7 +105,7 @@ def validate(text: str) -> tuple[bool, str]:
     when it passes, so the engine receives the final clean string in one call.
 
     Usage in engine.py:
-        ok, result = output_guard.validate(raw)
+        ok, result = output_guard.validate(raw, llm_judge)
         if not ok:
             return f"⚠️  {result}"   # result is the error message
         # result is now the cleaned response text
@@ -94,5 +114,11 @@ def validate(text: str) -> tuple[bool, str]:
         ok, result = check(text)
         if not ok:
             return False, result
+            
+    if llm_judge:
+        ok, reason = _check_llm_judge(text, llm_judge)
+        if not ok:
+            return False, reason
+
     # text.strip() removes any leading/trailing whitespace from the model's response
     return True, text.strip()

@@ -27,35 +27,13 @@ or if the output guardrail blocks the response, the user's message is removed
 from history so the next turn starts from a clean state.
 """
 
-from dataclasses import dataclass
+import logging
+from typing import Callable
 
+from chatbot.config import BaseChatConfig
 from chatbot.guardrails import input_guard, output_guard
 
-# Backends are imported lazily inside chat() so that — for example — running
-# in remote mode does not require the `ollama` package to be installed, and
-# vice versa. A top-level import would force both dependencies at startup.
-
-
-@dataclass
-class ChatConfig:
-    """
-    All configuration for one chatbot session.
-
-    Using a dataclass instead of a plain dict or positional arguments gives:
-    - Named fields: config.mode instead of config[0] or config["mode"]
-    - IDE autocompletion for all fields
-    - A readable __repr__ for debugging: ChatConfig(mode='remote', ...)
-    - Easy extensibility: add a field here and it's available everywhere
-
-    The fields with defaults (max_history_turns) must come after fields without.
-    """
-    mode: str               # "local" (Ollama) or "remote" (Gemini)
-    system_prompt: str      # the personality/instructions for the model
-    remote_model: str       # Gemini model name, e.g. "gemini-2.5-flash"
-    local_model: str        # Ollama model name, e.g. "llama3.2"
-    ollama_url: str         # Ollama server address, e.g. "http://localhost:11434"
-    api_key: str            # Gemini API key (empty string if mode == "local")
-    max_history_turns: int = 10  # number of question+answer pairs to keep
+logger = logging.getLogger(__name__)
 
 
 class ChatEngine:
@@ -70,7 +48,7 @@ class ChatEngine:
     To start a new conversation, create a new ChatEngine (or call history.clear()).
     """
 
-    def __init__(self, config: ChatConfig) -> None:
+    def __init__(self, config: BaseChatConfig) -> None:
         self.config = config
         # History is a list of {"role": ..., "content": ...} dicts.
         # Roles: "user" for user messages; "model" (Gemini) or "assistant" (Ollama) for bot.
@@ -93,6 +71,25 @@ class ChatEngine:
             # Slice from the end: keep the most recent messages
             self.history = self.history[-max_messages:]
 
+    def _call_backend(self, history: list[dict], system_prompt: str) -> str:
+        """Helper to call the configured backend."""
+        logger.debug(f"Calling backend in mode: {self.config.mode}")
+        if self.config.mode == "local":
+            from chatbot.backends import local
+            return local.get_response(
+                history=history,
+                system_prompt=system_prompt,
+                model=self.config.model_name,
+            )
+        else:
+            from chatbot.backends import remote
+            return remote.get_response(
+                history=history,
+                system_prompt=system_prompt,
+                model=self.config.model_name,
+                api_key=self.config.api_key,
+            )
+
     def chat(self, user_input: str) -> str:
         """
         Processes one user message and returns the chatbot's response string.
@@ -106,49 +103,36 @@ class ChatEngine:
             ⚠️ (guardrail rejection) or ❌ (backend/network error).
         """
 
+        def llm_judge(prompt: str) -> str:
+            judge_history = [{"role": "user", "content": prompt}]
+            try:
+                return self._call_backend(judge_history, system_prompt="You are a strict security evaluator.")
+            except Exception as exc:
+                logger.error(f"LLM judge failed: {exc}")
+                return "ERROR"
+
         # ── STEP 1: INPUT GUARDRAIL ─────────────────────────────────────────
-        # Check the user's message before spending any tokens.
-        # If the guardrail rejects it, we return immediately without touching
-        # the history — this exchange never happened from the model's perspective.
-        ok, reason = input_guard.validate(user_input)
+        ok, reason = input_guard.validate(user_input, llm_judge)
         if not ok:
+            logger.warning(f"Input rejected by guardrail: {reason}")
             return f"⚠️  {reason}"
 
         # ── STEP 2: ADD TO HISTORY ───────────────────────────────────────────
-        # Add the user message now. If the backend fails, we'll remove it.
         self.history.append({"role": "user", "content": user_input})
         self._trim_history()
 
         # ── STEP 3: CALL THE BACKEND ─────────────────────────────────────────
-        # Import only the backend we actually need. This keeps the remote mode
-        # free of the `ollama` dependency and local mode free of `google-genai`.
         try:
-            if self.config.mode == "local":
-                from chatbot.backends import local
-                raw = local.get_response(
-                    history=self.history,
-                    system_prompt=self.config.system_prompt,
-                    model=self.config.local_model,
-                )
-            else:
-                from chatbot.backends import remote
-                raw = remote.get_response(
-                    history=self.history,
-                    system_prompt=self.config.system_prompt,
-                    model=self.config.remote_model,
-                    api_key=self.config.api_key,
-                )
+            raw = self._call_backend(self.history, self.config.system_prompt)
         except Exception as exc:
-            # Something went wrong (no internet, Ollama not running, invalid key…).
-            # Remove the user's message so the next turn starts cleanly.
+            logger.error(f"Backend connection error: {exc}")
             self.history.pop()
             return f"❌  Error connecting to the model: {exc}"
 
         # ── STEP 4: OUTPUT GUARDRAIL ─────────────────────────────────────────
-        # Check the model's response before showing it.
-        # If blocked, we also undo the user's message from history.
-        ok, result = output_guard.validate(raw)
+        ok, result = output_guard.validate(raw, llm_judge)
         if not ok:
+            logger.warning(f"Output rejected by guardrail: {result}")
             self.history.pop()
             return f"⚠️  {result}"
 
