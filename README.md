@@ -140,12 +140,10 @@ Returns `(True, cleaned_text)` on pass, `(False, error_message)` on failure.
 
 ```toml
 # pyproject.toml
-google-genai>=1.10.0    # Official Gemini SDK (replaces deprecated google-generativeai)
+google-genai>=1.10.0    # Official Gemini SDK 
 ollama>=0.4.0           # Official Python client for Ollama
 python-dotenv>=1.1.0    # Loads .env into os.environ
 ```
-
-> **Note:** `google-generativeai` (the old package) has been deprecated since 2025. If you find examples using `import google.generativeai`, they are outdated.
 
 Both backend dependencies are **lazily imported** — running in remote mode does not require `ollama` to be installed, and vice versa.
 

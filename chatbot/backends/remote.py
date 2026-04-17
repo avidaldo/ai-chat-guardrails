@@ -3,10 +3,6 @@ remote.py
 
 Sends the conversation history to Google Gemini and returns the response.
 
-Library: google-genai >= 1.10  (the official, current SDK)
-    Do NOT use google-generativeai — it was deprecated in 2025.
-    If you find online tutorials that do `import google.generativeai`, they are outdated.
-
 Reference documentation:
     https://ai.google.dev/gemini-api/docs/quickstart
     https://googleapis.github.io/python-genai/
