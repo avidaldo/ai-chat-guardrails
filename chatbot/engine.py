@@ -27,13 +27,8 @@ or if the output guardrail blocks the response, the user's message is removed
 from history so the next turn starts from a clean state.
 """
 
-import logging
-from typing import Callable
-
 from chatbot.config import BaseChatConfig
 from chatbot.guardrails import input_guard, output_guard
-
-logger = logging.getLogger(__name__)
 
 
 class ChatEngine:
@@ -73,7 +68,6 @@ class ChatEngine:
 
     def _call_backend(self, history: list[dict], system_prompt: str) -> str:
         """Helper to call the configured backend."""
-        logger.debug(f"Calling backend in mode: {self.config.mode}")
         if self.config.mode == "local":
             from chatbot.backends import local
             return local.get_response(
@@ -108,13 +102,11 @@ class ChatEngine:
             try:
                 return self._call_backend(judge_history, system_prompt="You are a strict security evaluator.")
             except Exception as exc:
-                logger.error(f"LLM judge failed: {exc}")
                 return "ERROR"
 
         # ── STEP 1: INPUT GUARDRAIL ─────────────────────────────────────────
         ok, reason = input_guard.validate(user_input, llm_judge)
         if not ok:
-            logger.warning(f"Input rejected by guardrail: {reason}")
             return f"⚠️  {reason}"
 
         # ── STEP 2: ADD TO HISTORY ───────────────────────────────────────────
@@ -125,14 +117,12 @@ class ChatEngine:
         try:
             raw = self._call_backend(self.history, self.config.system_prompt)
         except Exception as exc:
-            logger.error(f"Backend connection error: {exc}")
             self.history.pop()
             return f"❌  Error connecting to the model: {exc}"
 
         # ── STEP 4: OUTPUT GUARDRAIL ─────────────────────────────────────────
         ok, result = output_guard.validate(raw, llm_judge)
         if not ok:
-            logger.warning(f"Output rejected by guardrail: {result}")
             self.history.pop()
             return f"⚠️  {result}"
 

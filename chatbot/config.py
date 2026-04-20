@@ -8,7 +8,7 @@ class BaseChatConfig(BaseSettings):
     """
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
 
-    chat_mode: str = Field(default="remote")
+    chat_mode: str
     system_prompt: str = Field(default_factory=lambda: Path("prompts/system.txt").read_text(encoding="utf-8").strip())
     max_history_turns: int = Field(default=10)
 

@@ -1,18 +1,10 @@
 # Guardrailed Chatbot — Didactic Example
 
-> **Context:** Classroom example to introduce LLM consumption with a safety layer.  
-> **Level:** Higher Vocational Training — Applied AI Module  
-> **Prerequisites:** Basic Python, REST APIs, LLM concepts
-
----
-
 ## What Are We Building?
 
 A conversational chatbot in Python that can use either a **local model** (Ollama — free, no internet required) or a **remote model** (Google Gemini, via API key). Before sending the user's message to the model, and before displaying its response, the code passes through a **guardrails** layer — small filters that block dangerous inputs and problematic outputs.
 
 This pattern (consuming an LLM + validating inputs and outputs) is exactly what is used in production in most conversational AI products today.
-
----
 
 ## Quick Start
 
@@ -21,12 +13,13 @@ This pattern (consuming an LLM + validating inputs and outputs) is exactly what 
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # 2. Install dependencies and create the virtual environment
-cd guardrails
 uv sync
 
 # 3. Configure environment
-cp .env.example .env
-# Edit .env — set GEMINI_API_KEY for remote mode, or CHAT_MODE=local for Ollama
+# Choose either local or remote configuration template:
+cp .env.remote.example .env # For Gemini
+# cp .env.local.example .env # For Ollama
+# Edit .env — set API_KEY for remote mode
 
 # 4. Run
 uv run python main.py
@@ -49,9 +42,10 @@ uv run python main.py
 ## Project Structure
 
 ```
-guardrails/
+.
 │
-├── .env.example            # Public template — no real secrets
+├── .env.local.example      # Template for Ollama (local)
+├── .env.remote.example     # Template for Gemini (remote)
 ├── pyproject.toml          # Dependencies (managed with uv)
 │
 ├── main.py                 # CLI conversation loop
@@ -94,20 +88,18 @@ See [`chatbot/engine.py`](chatbot/engine.py) for the implementation of this flow
 
 ## Configuration
 
-Copy `.env.example` to `.env` and fill in the values:
+Copy the appropriate example file to `.env` and fill in the values:
 
-| Variable | Default | Description |
-|---|---|---|
-| `CHAT_MODE` | `remote` | `"remote"` (Gemini) or `"local"` (Ollama) |
-| `GEMINI_API_KEY` | — | Required for remote mode. Get one free at [aistudio.google.com](https://aistudio.google.com/apikey) |
-| `REMOTE_MODEL` | `gemini-2.5-flash` | Gemini model name |
-| `LOCAL_MODEL` | `llama3.2` | Ollama model name |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server address |
-| `SYSTEM_PROMPT` | *(see file)* | Chatbot personality |
-| `MAX_HISTORY_TURNS` | `10` | Conversation turns to keep in context |
-| `MAX_INPUT_CHARS` | `500` | Max user message length |
+| Variable | Description |
+|---|---|
+| `CHAT_MODE` | `"remote"` (Gemini) or `"local"` (Ollama) |
+| `MODEL_NAME` | Model to use (e.g., `gemini-2.5-flash` or `llama3.2`) |
+| `API_KEY` | Required for remote mode. Get one free at [aistudio.google.com](https://aistudio.google.com/apikey) |
+| `BASE_URL` | Ollama server address (default: `http://localhost:11434`) |
+| `MAX_HISTORY_TURNS` | Conversation turns to keep in context (default: `10`) |
+| `MAX_INPUT_CHARS` | Max user message length (default: `500`) |
 
-> **Why two files (`.env` / `.env.example`):** `.env` contains real secrets and never goes to the repository. `.env.example` documents which variables the project needs without exposing any sensitive values. This is the standard in any professional project.
+> **Why multiple files (`.env` / `.env.*.example`):** `.env` contains real secrets and never goes to the repository. The `.example` files document which variables the project needs without exposing any sensitive values. This is the standard in any professional project.
 
 ---
 
@@ -194,15 +186,15 @@ Bot: Goodbye!
 
 ---
 
-## Intentional Limitations
+## Architectural Trade-offs & Simplifications
 
-This example prioritizes readability over completeness. These are known simplifications:
+This example prioritizes readability and strict security over complex features. These are known design decisions:
 
-| Limitation | Why it exists | Production solution |
+| Trade-off / Simplification | Why it exists | Production solution |
 |---|---|---|
-| No streaming | Linear code, easier to follow | `stream=True` + Python generators |
-| Single user, no sessions | Avoids state management complexity | Database + session ID per user |
-| Terminal CLI | Focus on the logic, not the UI | Gradio or FastAPI |
+| **No streaming** | Output guardrails need the full response to validate safely before showing it to the user. | Stream chunk validation (complex) or buffering chunks. |
+| **Single user, no sessions** | Avoids state management complexity. | Database + session ID per user. |
+| **Terminal CLI** | Focus on the core logic, not the UI. | API (FastAPI) or Web UI (Gradio). |
 
 ---
 
@@ -211,7 +203,7 @@ This example prioritizes readability over completeness. These are known simplifi
 ### Immediate
 
 - **Web UI with Gradio:** `gr.ChatInterface(engine.chat)` — one line turns the engine into a web app with visual history
-- **Token-by-token streaming:** pass `stream=True` to the backend and print tokens as they arrive
+- **Streaming with Guardrails:** pass `stream=True` but implement chunk-based validation to ensure sensitive data doesn't leak token-by-token.
 - **Persistent history:** serialize `engine.history` to JSON on exit, reload on startup
 
 ### More robust guardrails

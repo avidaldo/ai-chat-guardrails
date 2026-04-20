@@ -10,18 +10,10 @@ Responsibilities of this file (and ONLY this file):
     - Run the terminal conversation loop
 """
 
-import logging
 from chatbot.config import load_config
 from chatbot.engine import ChatEngine
 
-def setup_logging():
-    logging.basicConfig(
-        level=logging.WARNING, # Default to warning to keep CLI clean
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-
 def main() -> None:
-    setup_logging()
     
     try:
         config = load_config()
