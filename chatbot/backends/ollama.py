@@ -1,10 +1,10 @@
 """
-local.py
+ollama.py
 
-Sends the conversation history to a local Ollama model and returns the response.
+Sends the conversation history to an Ollama model and returns the response.
 
 Ollama is a tool that runs open-weight LLMs (Llama, Mistral, Phi…) locally
-on your machine. It exposes a local HTTP server that this library talks to.
+or remotely. It exposes an HTTP server that this library talks to.
 
 Library: ollama >= 0.4  (the official Python client)
 
@@ -17,20 +17,25 @@ References:
 import ollama
 
 
-class LocalBackend:
+class OllamaBackend:
+    assistant_role: str = "assistant"
+
     def __init__(self, model: str, system_prompt: str) -> None:
         self.model = model
         self.system_prompt = system_prompt
 
+    def ping(self) -> None:
+        ollama.list()
+
     def get_response(self, history: list[dict]) -> str:
         """
-        Sends the conversation history to a locally running Ollama model.
+        Sends the conversation history to an Ollama model.
         """
         messages: list[dict] = [{"role": "system", "content": self.system_prompt}]
 
         for msg in history:
             messages.append({
-                "role": msg["role"].replace("model", "assistant"),
+                "role": msg["role"],
                 "content": msg["content"],
             })
 

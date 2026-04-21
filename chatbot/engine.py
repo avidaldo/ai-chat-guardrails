@@ -28,7 +28,7 @@ from history so the next turn starts from a clean state.
 """
 
 from chatbot.config import BaseChatConfig
-from chatbot.backends import create_backend, create_judge_backend
+from chatbot.backends.factory import create_backend, create_judge_backend
 from chatbot.guardrails import input_guard, output_guard
 
 
@@ -47,10 +47,14 @@ class ChatEngine:
     def __init__(self, config: BaseChatConfig) -> None:
         self.config = config
         # History is a list of {"role": ..., "content": ...} dicts.
-        # Roles: "user" for user messages; "model" (Gemini) or "assistant" (Ollama) for bot.
+        # Roles: "user" for user messages; backend.assistant_role for bot messages.
         self.history: list[dict] = []
         self.backend = create_backend(config)
         self.judge_backend = create_judge_backend(config)
+
+    def check_connection(self) -> None:
+        """Verify the backend is reachable. Raises on failure."""
+        self.backend.ping()
 
     def _trim_history(self) -> None:
         """
@@ -112,9 +116,8 @@ class ChatEngine:
             return f"⚠️  {result}"
 
         # ── STEP 5: SAVE RESPONSE AND RETURN ────────────────────────────────
-        # Gemini uses "model" as the assistant role; Ollama uses "assistant".
-        # We store whatever convention matches the current backend.
-        assistant_role = "model" if self.config.mode == "remote" else "assistant"
-        self.history.append({"role": assistant_role, "content": result})
+        # Each backend declares its own assistant role name (e.g. "model" for
+        # Gemini, "assistant" for Ollama). We use that to stay consistent.
+        self.history.append({"role": self.backend.assistant_role, "content": result})
 
         return result

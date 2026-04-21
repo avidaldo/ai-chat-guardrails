@@ -1,5 +1,5 @@
 """
-remote.py
+gemini.py
 
 Sends the conversation history to Google Gemini and returns the response.
 
@@ -11,12 +11,16 @@ Reference documentation:
 from google import genai
 from google.genai import types
 
+class GeminiBackend:
+    assistant_role: str = "model"
 
-class RemoteBackend:
     def __init__(self, model: str, api_key: str, system_prompt: str) -> None:
         self.model = model
         self.system_prompt = system_prompt
         self._client = genai.Client(api_key=api_key)
+
+    def ping(self) -> None:
+        self._client.models.get(model=self.model)
 
     def get_response(self, history: list[dict]) -> str:
         """

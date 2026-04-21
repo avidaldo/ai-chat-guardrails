@@ -19,7 +19,7 @@ Architecture note:
 
 import os
 import re
-from typing import Callable
+from collections.abc import Callable
 
 # Read the character limit from the environment so it can be adjusted in .env
 # without changing the code. int() with a default handles missing variables.

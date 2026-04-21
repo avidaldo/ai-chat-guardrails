@@ -17,20 +17,20 @@ class BaseChatConfig(BaseSettings):
     def mode(self) -> str:
         return self.chat_mode.lower()
 
-class RemoteConfig(BaseChatConfig):
-    """Fields exclusive to the remote mode."""
+class GeminiConfig(BaseChatConfig):
+    """Fields exclusive to the Gemini (remote) backend."""
     model_name: str = Field(default="gemini-2.5-flash")
     api_key: str
 
-class LocalConfig(BaseChatConfig):
-    """Fields exclusive to the local mode."""
+class OllamaConfig(BaseChatConfig):
+    """Fields exclusive to the Ollama backend."""
     model_name: str = Field(default="llama3.2")
     base_url: str = Field(default="http://localhost:11434")
 
 def load_config() -> BaseChatConfig:
     """Reads the CHAT_MODE first and returns the appropriate exclusive config."""
     base = BaseChatConfig()
-    if base.mode == "remote":
-        return RemoteConfig()
+    if base.mode == "gemini":
+        return GeminiConfig()
     else:
-        return LocalConfig()
+        return OllamaConfig()

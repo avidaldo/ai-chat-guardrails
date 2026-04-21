@@ -23,6 +23,12 @@ def main() -> None:
 
     engine = ChatEngine(config)
 
+    try:
+        engine.check_connection()
+    except Exception as e:
+        print(f"❌ Could not connect to the model: {e}")
+        return
+
     print(f"\n🤖  Guardrailed Chatbot  |  Mode: {config.mode.upper()}")
     print("    Type 'exit' to quit.\n")
 

@@ -1,12 +1,12 @@
 import pytest
 from unittest.mock import MagicMock
 from chatbot.engine import ChatEngine
-from chatbot.config import RemoteConfig
+from chatbot.config import GeminiConfig
 
 @pytest.fixture
 def mock_config():
-    return RemoteConfig(
-        chat_mode="remote",
+    return GeminiConfig(
+        chat_mode="gemini",
         model_name="gemini-2.5-flash",
         api_key="fake-key",
         max_history_turns=2
@@ -16,6 +16,7 @@ def mock_config():
 def engine_with_mocks(mock_config, mocker):
     """Returns (engine, backend_mock, judge_mock) with real backends patched out."""
     backend = MagicMock()
+    backend.assistant_role = "model"
     judge = MagicMock()
     mocker.patch("chatbot.engine.create_backend", return_value=backend)
     mocker.patch("chatbot.engine.create_judge_backend", return_value=judge)
