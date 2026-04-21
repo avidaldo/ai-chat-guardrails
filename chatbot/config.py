@@ -10,6 +10,7 @@ class BaseChatConfig(BaseSettings):
 
     chat_mode: str
     system_prompt: str = Field(default_factory=lambda: Path("prompts/system.txt").read_text(encoding="utf-8").strip())
+    judge_system_prompt: str = Field(default_factory=lambda: Path("prompts/judge.txt").read_text(encoding="utf-8").strip())
     max_history_turns: int = Field(default=10)
 
     @property

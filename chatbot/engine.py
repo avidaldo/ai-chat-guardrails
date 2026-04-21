@@ -28,6 +28,7 @@ from history so the next turn starts from a clean state.
 """
 
 from chatbot.config import BaseChatConfig
+from chatbot.backends import create_backend, create_judge_backend
 from chatbot.guardrails import input_guard, output_guard
 
 
@@ -48,6 +49,8 @@ class ChatEngine:
         # History is a list of {"role": ..., "content": ...} dicts.
         # Roles: "user" for user messages; "model" (Gemini) or "assistant" (Ollama) for bot.
         self.history: list[dict] = []
+        self.backend = create_backend(config)
+        self.judge_backend = create_judge_backend(config)
 
     def _trim_history(self) -> None:
         """
@@ -66,24 +69,6 @@ class ChatEngine:
             # Slice from the end: keep the most recent messages
             self.history = self.history[-max_messages:]
 
-    def _call_backend(self, history: list[dict], system_prompt: str) -> str:
-        """Helper to call the configured backend."""
-        if self.config.mode == "local":
-            from chatbot.backends import local
-            return local.get_response(
-                history=history,
-                system_prompt=system_prompt,
-                model=self.config.model_name,
-            )
-        else:
-            from chatbot.backends import remote
-            return remote.get_response(
-                history=history,
-                system_prompt=system_prompt,
-                model=self.config.model_name,
-                api_key=self.config.api_key,
-            )
-
     def chat(self, user_input: str) -> str:
         """
         Processes one user message and returns the chatbot's response string.
@@ -100,7 +85,7 @@ class ChatEngine:
         def llm_judge(prompt: str) -> str:
             judge_history = [{"role": "user", "content": prompt}]
             try:
-                return self._call_backend(judge_history, system_prompt="You are a strict security evaluator.")
+                return self.judge_backend.get_response(judge_history)
             except Exception as exc:
                 return "ERROR"
 
@@ -115,7 +100,7 @@ class ChatEngine:
 
         # ── STEP 3: CALL THE BACKEND ─────────────────────────────────────────
         try:
-            raw = self._call_backend(self.history, self.config.system_prompt)
+            raw = self.backend.get_response(self.history)
         except Exception as exc:
             self.history.pop()
             return f"❌  Error connecting to the model: {exc}"

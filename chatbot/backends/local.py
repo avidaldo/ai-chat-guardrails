@@ -16,22 +16,23 @@ References:
 
 import ollama
 
-def get_response(
-    history: list[dict],
-    system_prompt: str,
-    model: str,
-    **kwargs,
-) -> str:
-    """
-    Sends the conversation history to a locally running Ollama model.
-    """
-    messages: list[dict] = [{"role": "system", "content": system_prompt}]
 
-    for msg in history:
-        messages.append({
-            "role": msg["role"].replace("model", "assistant"),
-            "content": msg["content"],
-        })
+class LocalBackend:
+    def __init__(self, model: str, system_prompt: str) -> None:
+        self.model = model
+        self.system_prompt = system_prompt
 
-    response = ollama.chat(model=model, messages=messages)
-    return response.message.content
+    def get_response(self, history: list[dict]) -> str:
+        """
+        Sends the conversation history to a locally running Ollama model.
+        """
+        messages: list[dict] = [{"role": "system", "content": self.system_prompt}]
+
+        for msg in history:
+            messages.append({
+                "role": msg["role"].replace("model", "assistant"),
+                "content": msg["content"],
+            })
+
+        response = ollama.chat(model=self.model, messages=messages)
+        return response.message.content

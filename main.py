@@ -27,6 +27,8 @@ def main() -> None:
     print("    Type 'exit' to quit.\n")
 
     while True:
+
+        # ── Get user input ─────────────────────────────────────────
         try:
             user_input = input("You: ").strip()
         except (KeyboardInterrupt, EOFError):
@@ -40,6 +42,7 @@ def main() -> None:
             print("Bot: Goodbye!")
             break
 
+        # ── Get bot response ─────────────────────────────────────────
         response = engine.chat(user_input)
         print(f"\nBot: {response}\n")
 
