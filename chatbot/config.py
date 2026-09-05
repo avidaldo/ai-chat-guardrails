@@ -1,17 +1,37 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
+from pydantic import Field, field_validator
 from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _read_prompt(filename: str) -> str:
+    return (PROJECT_ROOT / "prompts" / filename).read_text(encoding="utf-8").strip()
 
 class BaseChatConfig(BaseSettings):
     """
     Base configuration shared by all modes.
     """
-    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
+    model_config = SettingsConfigDict(env_file=PROJECT_ROOT / '.env', env_file_encoding='utf-8', extra='ignore')
 
     chat_mode: str
-    system_prompt: str = Field(default_factory=lambda: Path("prompts/system.txt").read_text(encoding="utf-8").strip())
-    judge_system_prompt: str = Field(default_factory=lambda: Path("prompts/judge.txt").read_text(encoding="utf-8").strip())
+    system_prompt: str = Field(default_factory=lambda: _read_prompt("system.txt"))
+    judge_system_prompt: str = Field(default_factory=lambda: _read_prompt("judge.txt"))
     max_history_turns: int = Field(default=10)
+
+    @field_validator("chat_mode", mode="before")
+    @classmethod
+    def normalize_chat_mode(cls, value: str) -> str:
+        normalized = str(value).strip().lower()
+        aliases = {
+            "local": "ollama",
+            "remote": "gemini",
+        }
+        normalized = aliases.get(normalized, normalized)
+        if normalized not in {"gemini", "ollama"}:
+            raise ValueError("CHAT_MODE must be one of: gemini, ollama, remote, local")
+        return normalized
 
     @property
     def mode(self) -> str:
@@ -32,5 +52,6 @@ def load_config() -> BaseChatConfig:
     base = BaseChatConfig()
     if base.mode == "gemini":
         return GeminiConfig()
-    else:
+    if base.mode == "ollama":
         return OllamaConfig()
+    raise ValueError(f"Unsupported chat mode: {base.mode}")

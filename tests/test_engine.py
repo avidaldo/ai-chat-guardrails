@@ -1,7 +1,8 @@
 import pytest
 from unittest.mock import MagicMock
+from pydantic import ValidationError
 from chatbot.engine import ChatEngine
-from chatbot.config import GeminiConfig
+from chatbot.config import GeminiConfig, OllamaConfig, load_config
 
 @pytest.fixture
 def mock_config():
@@ -69,3 +70,37 @@ def test_engine_history_trimming(engine_with_mocks):
     assert engine.history[2]["content"] == "SAFE RESPONSE"
     assert engine.history[3]["content"] == "Message 3"
     assert engine.history[4]["content"] == "SAFE RESPONSE"
+
+
+def test_load_config_requires_chat_mode(monkeypatch):
+    monkeypatch.delenv("CHAT_MODE", raising=False)
+    monkeypatch.delenv("API_KEY", raising=False)
+
+    with pytest.raises(ValidationError):
+        load_config()
+
+
+@pytest.mark.parametrize(
+    ("chat_mode", "expected_type", "expected_mode"),
+    [
+        ("local", OllamaConfig, "ollama"),
+        ("ollama", OllamaConfig, "ollama"),
+        ("remote", GeminiConfig, "gemini"),
+        ("gemini", GeminiConfig, "gemini"),
+    ],
+)
+def test_load_config_normalizes_mode_aliases(monkeypatch, chat_mode, expected_type, expected_mode):
+    monkeypatch.setenv("CHAT_MODE", chat_mode)
+    monkeypatch.setenv("API_KEY", "fake-key")
+
+    config = load_config()
+
+    assert isinstance(config, expected_type)
+    assert config.mode == expected_mode
+
+
+def test_load_config_rejects_invalid_mode(monkeypatch):
+    monkeypatch.setenv("CHAT_MODE", "banana")
+
+    with pytest.raises(ValidationError, match="CHAT_MODE must be one of"):
+        load_config()

@@ -10,15 +10,34 @@ Responsibilities of this file (and ONLY this file):
     - Run the terminal conversation loop
 """
 
+from pathlib import Path
+
+from pydantic import ValidationError
+
 from chatbot.config import load_config
 from chatbot.engine import ChatEngine
 
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+
+
+def _print_config_error(error: Exception) -> None:
+    if isinstance(error, ValidationError):
+        missing_chat_mode = any(issue["loc"] == ("chat_mode",) for issue in error.errors())
+        if missing_chat_mode and not (PROJECT_ROOT / ".env").exists():
+            print("❌ Configuration error: missing .env file.")
+            print("   Copy .env.local.example to .env for Ollama, or .env.remote.example to .env for Gemini.")
+            print("   Then edit .env and run the program again.")
+            return
+
+    print(f"❌ Configuration error: {error}")
+
 def main() -> None:
-    
+
     try:
         config = load_config()
     except Exception as e:
-        print(f"❌ Configuration error: {e}")
+        _print_config_error(e)
         return
 
     engine = ChatEngine(config)
